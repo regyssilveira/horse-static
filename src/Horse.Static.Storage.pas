@@ -149,10 +149,13 @@ begin
   if FindFirst(FFileName, faAnyFile, LSR) = 0 then
   begin
     FSize := LSR.Size;
-    FLastModified := LSR.FindData.Time; // Suporta FPC e Delphi de forma unificada via FindData ou LSR.Time
-    {$IF NOT DEFINED(FPC)}
-      {$IF compilerversion >= 28.0} // XE7+
-        FLastModified := TDateTime(LSR.Time);
+    {$IF DEFINED(FPC)}
+      FLastModified := LSR.Time;
+    {$ELSE}
+      {$IF compilerversion >= 28.0}
+        FLastModified := LSR.TimeStamp;
+      {$ELSE}
+        FLastModified := FileDateToDateTime(LSR.Time);
       {$IFEND}
     {$ENDIF}
     FindClose(LSR);
@@ -203,10 +206,13 @@ begin
   Result := 0;
   if FindFirst(AFileName, faAnyFile, LSR) = 0 then
   begin
-    Result := LSR.FindData.Time;
-    {$IF NOT DEFINED(FPC)}
+    {$IF DEFINED(FPC)}
+      Result := LSR.Time;
+    {$ELSE}
       {$IF compilerversion >= 28.0}
-        Result := TDateTime(LSR.Time);
+        Result := LSR.TimeStamp;
+      {$ELSE}
+        Result := FileDateToDateTime(LSR.Time);
       {$IFEND}
     {$ENDIF}
     FindClose(LSR);

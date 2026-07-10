@@ -4,31 +4,27 @@
   </a>
 </p><br>
 <p align="center">
-  <b>horse-static</b> is a high-performance, thread-safe, and abstract static file serving middleware for the <b>Horse</b> web framework.
+  <b>horse-static</b> é um middleware de serviço de arquivos estáticos de alta performance, thread-safe e abstrato para o framework web <b>Horse</b>.
 </p><br>
 
-<p align="center">
-  <i>Read this in <a href="./README.md">English</a> or <a href="./README.pt-BR.md">Português (BR)</a>.</i>
-</p>
+## ⚙️ Principais Recursos
 
-## ⚙️ Key Features
+* 🚀 **Suporte a HTTP 206 (Range):** Processamento nativo de requisições parciais para reprodução e avanço de vídeo/áudio (streaming) e downloads retomáveis.
+* 📦 **Controle de Cache:** Geração de ETags fracas a partir de metadados (`FileSize + ModifiedDate`), respondendo requisições com `304 Not Modified` sem gargalos de leitura de disco.
+* 🌐 **Modo SPA (Single Page Application):** Redirecionamento inteligente de rotas virtuais inexistentes no disco para um arquivo raiz (ex: `index.html`) para apps React/Vue/Angular.
+* 🛡️ **Segurança:** Proteção robusta integrada contra ataques de Directory Traversal.
+* 🔌 **Storage Abstrato:** Arquitetura desacoplada (via interface `IHorseStaticStorage`) pronta para extensões como AWS S3, Azure Blob ou Provedores de Memória.
+* 🧵 **Thread-Safe & Multi-Instance:** Sem estado global ou singletons de unit. Mapeie múltiplos caminhos físicos diferentes em portas diferentes com total segurança concorrente.
 
-* 🚀 **HTTP 206 Range Support:** Native handling of partial requests, allowing video/audio streaming and resumable downloads.
-* 📦 **Caching:** Weak ETags generated via metadata (`FileSize + ModifiedDate`) returning fast `304 Not Modified` responses.
-* 🌐 **SPA Fallback:** Simple routing of virtual pages to a single index file (e.g. `index.html`) for React/Vue/Angular apps.
-* 🛡️ **Security:** Built-in protection against Directory Traversal attacks.
-* 🔌 **Abstract Storage Provider:** Independent storage architecture (`IHorseStaticStorage` interface) ready for AWS S3, memory, or custom file providers.
-* 🧵 **Thread-Safe & Multi-Instance:** No global unit states. Safely deploy multiple instances pointing to different folders.
+## ⚙️ Instalação
 
-## ⚙️ Installation
-
-Install the package via [Boss](https://github.com/HashLoad/boss):
+Instale o pacote através do [Boss](https://github.com/HashLoad/boss):
 
 ```sh
 boss install github.com/regyssilveira/horse-static
 ```
 
-## ⚡️ Quickstart
+## ⚡️ Início Rápido
 
 ```delphi
 uses
@@ -36,7 +32,7 @@ uses
   Horse.Static;
 
 begin
-  // Register static middleware for './public' physical folder mapping to root URL
+  // Registra o middleware mapeando a pasta física './public' para a URL raiz
   THorse.Use(THorseStatic.Middleware(
     THorseStatic.New('./public')
       .CacheControl('public, max-age=3600')
@@ -49,17 +45,17 @@ begin
 end.
 ```
 
-## 📖 Configuration Options
+## 📖 Opções de Configuração
 
-The `THorseStaticConfig` record offers a fluent API:
+O record `THorseStaticConfig` possui uma API fluente (*Fluent API*):
 
-* `Storage(const AValue: IHorseStaticStorage)`: Set a custom storage provider. (Default is `THorseStaticLocalStorage`).
-* `CacheControl(const AValue: string)`: Set HTTP `Cache-Control` header (e.g. `'public, max-age=86400'`). Pass empty string to disable.
-* `UseETag(const AValue: Boolean)`: Enable/Disable ETag generation and evaluation (Default is `True`).
-* `UseLastModified(const AValue: Boolean)`: Enable/Disable `Last-Modified` validation (Default is `True`).
-* `AcceptRanges(const AValue: Boolean)`: Enable/Disable HTTP 206 Range request handling (Default is `True`).
-* `SpaFallback(const AIndexFile: string)`: File to serve (like `'index.html'`) when a requested physical path does not exist.
+* `Storage(const AValue: IHorseStaticStorage)`: Define um provedor de armazenamento customizado (Padrão: `THorseStaticLocalStorage`).
+* `CacheControl(const AValue: string)`: Injeta o cabeçalho HTTP `Cache-Control` (ex: `'public, max-age=86400'`). Passe string vazia para desabilitar.
+* `UseETag(const AValue: Boolean)`: Habilita ou desabilita a geração e validação de ETags (Padrão: `True`).
+* `UseLastModified(const AValue: Boolean)`: Habilita ou desabilita a validação de data de última modificação (Padrão: `True`).
+* `AcceptRanges(const AValue: Boolean)`: Habilita ou desabilita o processamento de HTTP 206 Range (Padrão: `True`).
+* `SpaFallback(const AIndexFile: string)`: Define o arquivo padrão (ex: `'index.html'`) para servir quando uma pasta ou arquivo virtual solicitado não existir fisicamente.
 
-## ⚠️ License
+## ⚠️ Licença
 
-`horse-static` is free and open-source software licensed under the [MIT License](LICENSE).
+`horse-static` é um software livre e de código aberto licenciado sob a [Licença MIT](LICENSE).

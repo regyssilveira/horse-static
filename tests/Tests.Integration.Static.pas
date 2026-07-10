@@ -4,6 +4,7 @@ interface
 
 uses
   DUnitX.TestFramework, Horse, Horse.Commons, Horse.Static, Horse.Static.Storage,
+  Horse.Core.RouterTree, Horse.Core,
   RESTRequest4D, System.SysUtils, System.Classes, System.Types, System.StrUtils,
   System.IOUtils, System.DateUtils, System.Rtti, System.Generics.Collections;
 
@@ -135,8 +136,8 @@ begin
   Assert.AreEqual(200, LRes.StatusCode);
   Assert.AreEqual('0123456789', LRes.Content);
   Assert.AreEqual('text/plain', LRes.ContentType);
-  Assert.AreEqual('bytes', LRes.Headers['Accept-Ranges']);
-  Assert.AreEqual('10', LRes.Headers['Content-Length']);
+  Assert.AreEqual('bytes', LRes.Headers.Values['Accept-Ranges']);
+  Assert.AreEqual('10', LRes.Headers.Values['Content-Length']);
 end;
 
 procedure TTestIntegrationStatic.TestDirectoryTraversalReturnsHTTP404Or403;
@@ -164,7 +165,7 @@ begin
     .Get;
 
   Assert.AreEqual(200, LRes.StatusCode);
-  LETag := LRes.Headers['ETag'];
+  LETag := LRes.Headers.Values['ETag'];
   Assert.AreNotEqual('', LETag);
 
   // Segunda requisição simulando cache do navegador enviando o If-None-Match
@@ -189,8 +190,8 @@ begin
 
   Assert.AreEqual(206, LRes.StatusCode);
   Assert.AreEqual('01234', LRes.Content); // Primeiros 5 bytes de '0123456789'
-  Assert.AreEqual('bytes 0-4/10', LRes.Headers['Content-Range']);
-  Assert.AreEqual('5', LRes.Headers['Content-Length']);
+  Assert.AreEqual('bytes 0-4/10', LRes.Headers.Values['Content-Range']);
+  Assert.AreEqual('5', LRes.Headers.Values['Content-Length']);
 
   // Solicita range aberto a partir do byte 5 (5-)
   LRes := TRequest.New
@@ -200,8 +201,8 @@ begin
 
   Assert.AreEqual(206, LRes.StatusCode);
   Assert.AreEqual('56789', LRes.Content);
-  Assert.AreEqual('bytes 5-9/10', LRes.Headers['Content-Range']);
-  Assert.AreEqual('5', LRes.Headers['Content-Length']);
+  Assert.AreEqual('bytes 5-9/10', LRes.Headers.Values['Content-Range']);
+  Assert.AreEqual('5', LRes.Headers.Values['Content-Length']);
 end;
 
 procedure TTestIntegrationStatic.TestRangeRequestInvalidReturnsHTTP416;
@@ -215,7 +216,7 @@ begin
     .Get;
 
   Assert.AreEqual(416, LRes.StatusCode);
-  Assert.AreEqual('bytes */10', LRes.Headers['Content-Range']);
+  Assert.AreEqual('bytes */10', LRes.Headers.Values['Content-Range']);
 end;
 
 procedure TTestIntegrationStatic.TestSPAFallbackReturnsIndexHTML;

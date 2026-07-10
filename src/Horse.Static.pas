@@ -238,7 +238,6 @@ begin
   Res.Status(THTTPStatus.PartialContent);
   Res.AddHeader('Content-Range', Format('bytes %d-%d/%d', [LStart, LEnd, LFileSize]));
   Res.AddHeader('Accept-Ranges', 'bytes');
-  Res.AddHeader('Content-Length', LRangeLength.ToString);
   Res.SendFile(LRangeStream, AFile.GetName, AFile.GetContentType);
 end;
 
@@ -246,7 +245,6 @@ procedure THorseStatic.HandleFullRequest(Res: THorseResponse; const AFile: IHors
 begin
   Res.Status(THTTPStatus.Ok);
   Res.AddHeader('Accept-Ranges', 'bytes');
-  Res.AddHeader('Content-Length', AFile.GetSize.ToString);
   Res.SendFile(AFile.GetContentStream, AFile.GetName, AFile.GetContentType);
 end;
 
@@ -275,7 +273,7 @@ begin
       if not AConfig.GetStorage.Exists(LCleanPath) then
       begin
         // Se SPA Fallback estiver ativado, tenta o fallback
-        if (AConfig.GetSpaFallbackFile <> '') and AConfig.GetStorage.Exists(AConfig.GetSpaFallbackFile) then
+        if (AConfig.GetSpaFallbackFile <> '') and (not LCleanPath.Contains('..')) and AConfig.GetStorage.Exists(AConfig.GetSpaFallbackFile) then
           LCleanPath := AConfig.GetSpaFallbackFile
         else
         begin
@@ -316,11 +314,12 @@ begin
         if AConfig.GetUseLastModified then
         begin
           // Data de modificação no formato UTC/GMT
-          LModifiedTimeUTC := UniversalTimeToLocalTime(LFile.GetLastModified); // Converte de local para UTC se o arquivo retornar local
           // FindFirst no Delphi retorna tempo local. Para responder como HTTP GMT, fazemos a conversão para GMT
-          // No Delphi/Lazarus, TTimeZone.Local.ToUniversalTime é o padrão, mas para compatibilidade multiplataforma pura:
-          // LocalTimeToUniversalTime está em DateUtils
-          LModifiedTimeUTC := LocalTimeToUniversalTime(LFile.GetLastModified);
+          {$IF DEFINED(FPC)}
+            LModifiedTimeUTC := LocalTimeToUniversalTime(LFile.GetLastModified);
+          {$ELSE}
+            LModifiedTimeUTC := TTimeZone.Local.ToUniversalTime(LFile.GetLastModified);
+          {$ENDIF}
           
           Res.AddHeader('Last-Modified', DateTimeToHTTPDate(LModifiedTimeUTC));
 
