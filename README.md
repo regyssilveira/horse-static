@@ -6,6 +6,21 @@ Ele oferece suporte nativo a requisições de bytes parciais (HTTP 206 Range) pa
 
 ---
 
+## 🚀 Recursos e Comparativo de Ecossistemas
+
+O **Horse Static** foi desenvolvido alinhado com as melhores práticas de entrega de conteúdo estático do mercado moderno. Veja abaixo como ele se compara com as soluções de referência de outros ecossistemas:
+
+| Funcionalidade | serve-static (Express / Node.js) | Static Files (ASP.NET Core / C#) | **Horse Static (Delphi/FPC)** |
+| :--- | :---: | :---: | :---: |
+| **HTTP 206 Ranges (Streaming)** | Sim | Sim | **Sim** |
+| **Caching com ETags & Last-Modified** | Sim | Sim | **Sim** |
+| **Roteamento SPA Fallback** | Requer pacote extra (ex: `connect-history-...`) | Requer rotas customizadas | **Sim** (Nativo via `SpaFallback`) |
+| **Proteção Directory Traversal** | Sim | Sim | **Sim** |
+| **Storage Abstrato (Banco, S3, RAM)** | Atrelado ao File System local | Atrelado à interface `IFileProvider` | **Sim** (Nativo e desacoplado via `IHorseStaticStorage`) |
+| **Multi-instância Thread-safe** | Sim | Sim | **Sim** |
+
+---
+
 ## ⚙️ Principais Recursos
 
 * 🚀 **Suporte a HTTP 206 (Range):** Processamento nativo de requisições parciais para reprodução e avanço de vídeo/áudio (streaming) e downloads retomáveis.
