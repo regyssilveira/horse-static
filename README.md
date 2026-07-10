@@ -1,7 +1,8 @@
+# Horse Static
 
-<p align="center">
-  <b>horse-static</b> é um middleware de serviço de arquivos estáticos de alta performance, thread-safe e abstrato para o framework web <b>Horse</b>.
-</p><br>
+Middleware de serviço de arquivos estáticos de alta performance, thread-safe e abstrato para o framework web **Horse**.
+
+---
 
 ## ⚙️ Principais Recursos
 
@@ -12,13 +13,17 @@
 * 🔌 **Storage Abstrato:** Arquitetura desacoplada (via interface `IHorseStaticStorage`) pronta para extensões como AWS S3, Azure Blob ou Provedores de Memória.
 * 🧵 **Thread-Safe & Multi-Instance:** Sem estado global ou singletons de unit. Mapeie múltiplos caminhos físicos diferentes em portas diferentes com total segurança concorrente.
 
+---
+
 ## ⚙️ Instalação
 
-Instale o pacote através do [Boss](https://github.com/HashLoad/boss):
+A instalação é simples e feita através do gerenciador de pacotes [`boss`](https://github.com/HashLoad/boss):
 
 ```sh
 boss install github.com/regyssilveira/horse-static
 ```
+
+---
 
 ## ⚡️ Início Rápido
 
@@ -41,6 +46,8 @@ begin
 end.
 ```
 
+---
+
 ## 📖 Opções de Configuração
 
 O record `THorseStaticConfig` possui uma API fluente (*Fluent API*):
@@ -52,6 +59,8 @@ O record `THorseStaticConfig` possui uma API fluente (*Fluent API*):
 * `AcceptRanges(const AValue: Boolean)`: Habilita ou desabilita o processamento de HTTP 206 Range (Padrão: `True`).
 * `SpaFallback(const AIndexFile: string)`: Define o arquivo padrão (ex: `'index.html'`) para servir quando uma pasta ou arquivo virtual solicitado não existir fisicamente.
 
-## ⚠️ Licença
+---
 
-`horse-static` é um software livre e de código aberto licenciado sob a [Licença MIT](LICENSE).
+## 📄 Licença
+
+Licenciado sob a licença [MIT](LICENSE).
