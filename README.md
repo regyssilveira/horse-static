@@ -1,8 +1,4 @@
-<p align="center">
-  <a href="https://github.com/regyssilveira/horse-static/blob/master/img/logo.png">
-    <img alt="Horse Static" height="150" src="https://github.com/HashLoad/horse/blob/master/img/horse.png">
-  </a>
-</p><br>
+
 <p align="center">
   <b>horse-static</b> é um middleware de serviço de arquivos estáticos de alta performance, thread-safe e abstrato para o framework web <b>Horse</b>.
 </p><br>
