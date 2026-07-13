@@ -3,7 +3,7 @@
   "description": "Static file serving middleware with HTTP 206 Range, ETags caching and abstract storage support for Horse",
   "version": "1.0.0",
   "homepage": "https://github.com/regyssilveira/horse-static",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "mainsrc": "src/",
   "dependencies": {
     "horse": "^3.0.0"

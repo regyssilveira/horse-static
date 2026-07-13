@@ -224,4 +224,4 @@ A estrutura fluente `THorseStaticConfig` possui as seguintes opções para param
 
 ## 📄 Licença
 
-Licenciado sob a licença [MIT](LICENSE).
+Este projeto está licenciado sob a [Apache License 2.0](LICENSE).
