@@ -1,7 +1,7 @@
 {
   "name": "horse-static",
   "description": "Static file serving middleware with HTTP 206 Range, ETags caching and abstract storage support for Horse",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "homepage": "https://github.com/regyssilveira/horse-static",
   "license": "Apache-2.0",
   "mainsrc": "src/",
