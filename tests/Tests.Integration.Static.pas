@@ -23,6 +23,10 @@ type
     procedure SetupFixture;
     [TearDownFixture]
     procedure TearDownFixture;
+    [Setup]
+    procedure Setup;
+    [TearDown]
+    procedure TearDown;
 
     [Test]
     procedure TestServeFileReturnsHTTP200AndCorrectContent;
@@ -89,8 +93,6 @@ procedure TTestIntegrationStatic.SetupFixture;
 var
   LIndexContent, LTestContent: string;
 begin
-  FClient := THTTPClient.Create;
-
   // Cria estrutura de arquivos de teste
   FTestDir := TPath.Combine(TPath.GetTempPath, 'horse_static_tests');
   if TDirectory.Exists(FTestDir) then
@@ -125,10 +127,19 @@ end;
 procedure TTestIntegrationStatic.TearDownFixture;
 begin
   ClearGlobalState;
-  FClient.Free;
   Sleep(500);
   if TDirectory.Exists(FTestDir) then
     TDirectory.Delete(FTestDir, True);
+end;
+
+procedure TTestIntegrationStatic.Setup;
+begin
+  FClient := THTTPClient.Create;
+end;
+
+procedure TTestIntegrationStatic.TearDown;
+begin
+  FClient.Free;
 end;
 
 procedure TTestIntegrationStatic.TestServeFileReturnsHTTP200AndCorrectContent;
@@ -174,6 +185,7 @@ begin
   LClient := TIdHTTP.Create(nil);
   try
     LClient.HTTPOptions := LClient.HTTPOptions + [hoNoProtocolErrorException];
+    LClient.Request.Connection := 'close';
     LClient.Request.CustomHeaders.Values['If-None-Match'] := LETag;
     LClient.Get(Format('http://localhost:%d/test.txt', [TEST_PORT]));
     Assert.AreEqual(304, LClient.ResponseCode);
@@ -184,44 +196,53 @@ end;
 
 procedure TTestIntegrationStatic.TestRangeRequestReturnsHTTP206AndPartialBytes;
 var
-  LRes: IHTTPResponse;
-  LHeaders: TNetHeaders;
+  LClient: TIdHTTP;
+  LContent: string;
 begin
-  // Solicita range parcial dos primeiros 5 bytes (0-4)
-  SetLength(LHeaders, 1);
-  LHeaders[0] := TNetHeader.Create('Range', 'bytes=0-4');
-  LRes := FClient.Get(
-    Format('http://localhost:%d/test.txt', [TEST_PORT]), nil, LHeaders);
+  LClient := TIdHTTP.Create(nil);
+  try
+    LClient.HTTPOptions := LClient.HTTPOptions + [hoNoProtocolErrorException];
+    LClient.Request.Connection := 'close';
+    LClient.Request.CustomHeaders.Values['Range'] := 'bytes=0-4';
+    LContent := LClient.Get(
+      Format('http://localhost:%d/test.txt', [TEST_PORT]));
+    Assert.AreEqual(206, LClient.ResponseCode);
+    Assert.AreEqual('01234', LContent);
+    Assert.AreEqual('bytes 0-4/10',
+      LClient.Response.RawHeaders.Values['Content-Range']);
+    Assert.AreEqual('5',
+      LClient.Response.RawHeaders.Values['Content-Length']);
 
-  Assert.AreEqual(206, LRes.StatusCode);
-  Assert.AreEqual('01234', LRes.ContentAsString); // Primeiros 5 bytes de '0123456789'
-  Assert.AreEqual('bytes 0-4/10', LRes.HeaderValue['Content-Range']);
-  Assert.AreEqual('5', LRes.HeaderValue['Content-Length']);
-
-  // Solicita range aberto a partir do byte 5 (5-)
-  LHeaders[0] := TNetHeader.Create('Range', 'bytes=5-');
-  LRes := FClient.Get(
-    Format('http://localhost:%d/test.txt', [TEST_PORT]), nil, LHeaders);
-
-  Assert.AreEqual(206, LRes.StatusCode);
-  Assert.AreEqual('56789', LRes.ContentAsString);
-  Assert.AreEqual('bytes 5-9/10', LRes.HeaderValue['Content-Range']);
-  Assert.AreEqual('5', LRes.HeaderValue['Content-Length']);
+    LClient.Request.CustomHeaders.Values['Range'] := 'bytes=5-';
+    LContent := LClient.Get(
+      Format('http://localhost:%d/test.txt', [TEST_PORT]));
+    Assert.AreEqual(206, LClient.ResponseCode);
+    Assert.AreEqual('56789', LContent);
+    Assert.AreEqual('bytes 5-9/10',
+      LClient.Response.RawHeaders.Values['Content-Range']);
+    Assert.AreEqual('5',
+      LClient.Response.RawHeaders.Values['Content-Length']);
+  finally
+    LClient.Free;
+  end;
 end;
 
 procedure TTestIntegrationStatic.TestRangeRequestInvalidReturnsHTTP416;
 var
-  LRes: IHTTPResponse;
-  LHeaders: TNetHeaders;
+  LClient: TIdHTTP;
 begin
-  // Range inicial maior que o final ou extrapolado
-  SetLength(LHeaders, 1);
-  LHeaders[0] := TNetHeader.Create('Range', 'bytes=15-20');
-  LRes := FClient.Get(
-    Format('http://localhost:%d/test.txt', [TEST_PORT]), nil, LHeaders);
-
-  Assert.AreEqual(416, LRes.StatusCode);
-  Assert.AreEqual('bytes */10', LRes.HeaderValue['Content-Range']);
+  LClient := TIdHTTP.Create(nil);
+  try
+    LClient.HTTPOptions := LClient.HTTPOptions + [hoNoProtocolErrorException];
+    LClient.Request.Connection := 'close';
+    LClient.Request.CustomHeaders.Values['Range'] := 'bytes=15-20';
+    LClient.Get(Format('http://localhost:%d/test.txt', [TEST_PORT]));
+    Assert.AreEqual(416, LClient.ResponseCode);
+    Assert.AreEqual('bytes */10',
+      LClient.Response.RawHeaders.Values['Content-Range']);
+  finally
+    LClient.Free;
+  end;
 end;
 
 procedure TTestIntegrationStatic.TestSPAFallbackReturnsIndexHTML;

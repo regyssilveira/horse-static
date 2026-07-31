@@ -40,6 +40,7 @@ type
   public
     constructor Create(const ASourceStream: TStream; const AStart, ALength: Int64; const AOwnsSource: Boolean = True);
     destructor Destroy; override;
+    function GetSize: Int64; override;
     function Read(var Buffer; Count: Longint): Longint; override;
     function Write(const Buffer; Count: Longint): Longint; override;
     function Seek(Offset: Longint; Origin: Word): Longint; overload; override;
@@ -92,6 +93,11 @@ begin
   if FOwnsSource then
     FSourceStream.Free;
   inherited Destroy;
+end;
+
+function THorseStaticRangeStream.GetSize: Int64;
+begin
+  Result := FSize;
 end;
 
 function THorseStaticRangeStream.Read(var Buffer; Count: Longint): Longint;
