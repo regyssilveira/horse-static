@@ -125,6 +125,7 @@ end;
 class function THorseStatic.ParseHTTPDate(const ADateStr: string): TDateTime;
 var
   LDay, LMonth, LYear, LHour, LMin, LSec: Word;
+  I: Integer;
   LMonthStr: string;
 const
   Months: array[1..12] of string = ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec');
@@ -136,7 +137,7 @@ begin
   LDay := StrToIntDef(Copy(ADateStr, 6, 2), 1);
   LMonthStr := Copy(ADateStr, 9, 3);
   LMonth := 1;
-  for var I := 1 to 12 do
+  for I := 1 to 12 do
   begin
     if SameText(LMonthStr, Months[I]) then
     begin
@@ -227,7 +228,7 @@ begin
     Res.Status(THTTPStatus.RequestedRangeNotSatisfiable);
     Res.AddHeader('Content-Range', 'bytes */' + LFileSize.ToString);
     Res.Send('');
-    Exit;
+    raise EHorseCallbackInterrupted.Create;
   end;
 
   LRangeLength := LEnd - LStart + 1;
@@ -249,7 +250,10 @@ begin
 end;
 
 class function THorseStatic.Middleware(const AConfig: THorseStaticConfig): THorseCallback;
+var
+  LConfig: THorseStaticConfig;
 begin
+  LConfig := AConfig;
   Result :=
     procedure(Req: THorseRequest; Res: THorseResponse; Next: {$IF DEFINED(FPC)}TNextProc{$ELSE}TProc{$ENDIF})
     var
@@ -264,17 +268,17 @@ begin
       LRequestPath := Req.RawWebRequest.PathInfo;
       
       // Remove o prefixo virtual se houver
-      if LRequestPath.StartsWith(AConfig.GetVirtualPath, True) then
-        LCleanPath := Copy(LRequestPath, Length(AConfig.GetVirtualPath) + 1, MaxInt)
+      if LRequestPath.StartsWith(LConfig.GetVirtualPath, True) then
+        LCleanPath := Copy(LRequestPath, Length(LConfig.GetVirtualPath) + 1, MaxInt)
       else
         LCleanPath := LRequestPath;
 
       // Sanitiza caminho contra Traversal e confere existência
-      if not AConfig.GetStorage.Exists(LCleanPath) then
+      if not LConfig.GetStorage.Exists(LCleanPath) then
       begin
         // Se SPA Fallback estiver ativado, tenta o fallback
-        if (AConfig.GetSpaFallbackFile <> '') and (not LCleanPath.Contains('..')) and AConfig.GetStorage.Exists(AConfig.GetSpaFallbackFile) then
-          LCleanPath := AConfig.GetSpaFallbackFile
+        if (LConfig.GetSpaFallbackFile <> '') and (not LCleanPath.Contains('..')) and LConfig.GetStorage.Exists(LConfig.GetSpaFallbackFile) then
+          LCleanPath := LConfig.GetSpaFallbackFile
         else
         begin
           Next;
@@ -282,21 +286,21 @@ begin
         end;
       end;
 
-      LFile := AConfig.GetStorage.GetFile(LCleanPath);
+      LFile := LConfig.GetStorage.GetFile(LCleanPath);
       if not Assigned(LFile) then
       begin
         Next;
         Exit;
       end;
 
-      LStatic := THorseStatic.Create(AConfig);
+      LStatic := THorseStatic.Create(LConfig);
       try
         // Configura cabeçalho de controle de cache
-        if AConfig.GetCacheControl <> '' then
-          Res.AddHeader('Cache-Control', AConfig.GetCacheControl);
+        if LConfig.GetCacheControl <> '' then
+          Res.AddHeader('Cache-Control', LConfig.GetCacheControl);
 
         // Configura ETag e validação conditional (If-None-Match)
-        if AConfig.GetUseETag then
+        if LConfig.GetUseETag then
         begin
           LETag := LStatic.GenerateETag(LFile);
           Res.AddHeader('ETag', LETag);
@@ -306,12 +310,12 @@ begin
           begin
             Res.Status(THTTPStatus.NotModified);
             Res.Send('');
-            Exit;
+            raise EHorseCallbackInterrupted.Create;
           end;
         end;
 
         // Configura Last-Modified e validação conditional (If-Modified-Since)
-        if AConfig.GetUseLastModified then
+        if LConfig.GetUseLastModified then
         begin
           // Data de modificação no formato UTC/GMT
           // FindFirst no Delphi retorna tempo local. Para responder como HTTP GMT, fazemos a conversão para GMT
@@ -330,14 +334,14 @@ begin
             begin
               Res.Status(THTTPStatus.NotModified);
               Res.Send('');
-              Exit;
+              raise EHorseCallbackInterrupted.Create;
             end;
           end;
         end;
 
         // Processa requisição de Range se aceita e enviada pelo cliente
         LUseRange := False;
-        if AConfig.GetAcceptRanges then
+        if LConfig.GetAcceptRanges then
         begin
           LRangeHeader := Req.Headers['Range'];
           if (LRangeHeader <> '') and LRangeHeader.StartsWith('bytes=') then

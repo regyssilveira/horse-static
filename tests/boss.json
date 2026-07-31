@@ -4,7 +4,5 @@
   "version": "1.0.0",
   "homepage": "https://github.com/regyssilveira/horse-static",
   "license": "MIT",
-  "dependencies": {
-    "github.com/viniciussanchez/restrequest4d": "^3.2.0"
-  }
+  "dependencies": {}
 }

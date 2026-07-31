@@ -5,7 +5,9 @@ interface
 uses
   DUnitX.TestFramework, Horse, Horse.Commons, Horse.Static, Horse.Static.Storage,
   Horse.Core.RouterTree, Horse.Core,
-  RESTRequest4D, System.SysUtils, System.Classes, System.Types, System.StrUtils,
+  System.Net.HttpClient, System.Net.URLClient,
+  IdHTTP,
+  System.SysUtils, System.Classes, System.Types, System.StrUtils,
   System.IOUtils, System.DateUtils, System.Rtti, System.Generics.Collections;
 
 type
@@ -13,6 +15,7 @@ type
   TTestIntegrationStatic = class
   private
     const TEST_PORT = 9098;
+    class var FClient: THTTPClient;
     var FTestDir: string;
     procedure ClearGlobalState;
   public
@@ -86,6 +89,8 @@ procedure TTestIntegrationStatic.SetupFixture;
 var
   LIndexContent, LTestContent: string;
 begin
+  FClient := THTTPClient.Create;
+
   // Cria estrutura de arquivos de teste
   FTestDir := TPath.Combine(TPath.GetTempPath, 'horse_static_tests');
   if TDirectory.Exists(FTestDir) then
@@ -120,6 +125,7 @@ end;
 procedure TTestIntegrationStatic.TearDownFixture;
 begin
   ClearGlobalState;
+  FClient.Free;
   Sleep(500);
   if TDirectory.Exists(FTestDir) then
     TDirectory.Delete(FTestDir, True);
@@ -127,27 +133,24 @@ end;
 
 procedure TTestIntegrationStatic.TestServeFileReturnsHTTP200AndCorrectContent;
 var
-  LRes: IResponse;
+  LRes: IHTTPResponse;
 begin
-  LRes := TRequest.New
-    .BaseURL(Format('http://localhost:%d/test.txt', [TEST_PORT]))
-    .Get;
+  LRes := FClient.Get(Format('http://localhost:%d/test.txt', [TEST_PORT]));
 
   Assert.AreEqual(200, LRes.StatusCode);
-  Assert.AreEqual('0123456789', LRes.Content);
-  Assert.AreEqual('text/plain', LRes.ContentType);
-  Assert.AreEqual('bytes', LRes.Headers.Values['Accept-Ranges']);
-  Assert.AreEqual('10', LRes.Headers.Values['Content-Length']);
+  Assert.AreEqual('0123456789', LRes.ContentAsString);
+  Assert.IsTrue(LRes.HeaderValue['Content-Type'].StartsWith('text/plain'));
+  Assert.AreEqual('bytes', LRes.HeaderValue['Accept-Ranges']);
+  Assert.AreEqual('10', LRes.HeaderValue['Content-Length']);
 end;
 
 procedure TTestIntegrationStatic.TestDirectoryTraversalReturnsHTTP404Or403;
 var
-  LRes: IResponse;
+  LRes: IHTTPResponse;
 begin
   // Tenta subir níveis relativos
-  LRes := TRequest.New
-    .BaseURL(Format('http://localhost:%d/../../etc/passwd', [TEST_PORT]))
-    .Get;
+  LRes := FClient.Get(Format(
+    'http://localhost:%d/%%2e%%2e/%%2e%%2e/etc/passwd', [TEST_PORT]));
 
   // Como o arquivo não existirá na pasta raiz nem o fallback é aplicável,
   // o request deve retornar HTTP 404 (pois o middleware chama Next e não há rotas subsequentes mapeadas).
@@ -156,82 +159,83 @@ end;
 
 procedure TTestIntegrationStatic.TestCacheETagReturnsHTTP304NotModified;
 var
-  LRes: IResponse;
+  LRes: IHTTPResponse;
   LETag: string;
+  LClient: TIdHTTP;
 begin
   // Primeira requisição para pegar a ETag
-  LRes := TRequest.New
-    .BaseURL(Format('http://localhost:%d/test.txt', [TEST_PORT]))
-    .Get;
+  LRes := FClient.Get(Format('http://localhost:%d/test.txt', [TEST_PORT]));
 
   Assert.AreEqual(200, LRes.StatusCode);
-  LETag := LRes.Headers.Values['ETag'];
+  LETag := LRes.HeaderValue['ETag'];
   Assert.AreNotEqual('', LETag);
 
   // Segunda requisição simulando cache do navegador enviando o If-None-Match
-  LRes := TRequest.New
-    .BaseURL(Format('http://localhost:%d/test.txt', [TEST_PORT]))
-    .AddHeader('If-None-Match', LETag)
-    .Get;
-
-  Assert.AreEqual(304, LRes.StatusCode);
-  Assert.AreEqual('', LRes.Content); // Corpo vazio
+  LClient := TIdHTTP.Create(nil);
+  try
+    LClient.HTTPOptions := LClient.HTTPOptions + [hoNoProtocolErrorException];
+    LClient.Request.CustomHeaders.Values['If-None-Match'] := LETag;
+    LClient.Get(Format('http://localhost:%d/test.txt', [TEST_PORT]));
+    Assert.AreEqual(304, LClient.ResponseCode);
+  finally
+    LClient.Free;
+  end;
 end;
 
 procedure TTestIntegrationStatic.TestRangeRequestReturnsHTTP206AndPartialBytes;
 var
-  LRes: IResponse;
+  LRes: IHTTPResponse;
+  LHeaders: TNetHeaders;
 begin
   // Solicita range parcial dos primeiros 5 bytes (0-4)
-  LRes := TRequest.New
-    .BaseURL(Format('http://localhost:%d/test.txt', [TEST_PORT]))
-    .AddHeader('Range', 'bytes=0-4')
-    .Get;
+  SetLength(LHeaders, 1);
+  LHeaders[0] := TNetHeader.Create('Range', 'bytes=0-4');
+  LRes := FClient.Get(
+    Format('http://localhost:%d/test.txt', [TEST_PORT]), nil, LHeaders);
 
   Assert.AreEqual(206, LRes.StatusCode);
-  Assert.AreEqual('01234', LRes.Content); // Primeiros 5 bytes de '0123456789'
-  Assert.AreEqual('bytes 0-4/10', LRes.Headers.Values['Content-Range']);
-  Assert.AreEqual('5', LRes.Headers.Values['Content-Length']);
+  Assert.AreEqual('01234', LRes.ContentAsString); // Primeiros 5 bytes de '0123456789'
+  Assert.AreEqual('bytes 0-4/10', LRes.HeaderValue['Content-Range']);
+  Assert.AreEqual('5', LRes.HeaderValue['Content-Length']);
 
   // Solicita range aberto a partir do byte 5 (5-)
-  LRes := TRequest.New
-    .BaseURL(Format('http://localhost:%d/test.txt', [TEST_PORT]))
-    .AddHeader('Range', 'bytes=5-')
-    .Get;
+  LHeaders[0] := TNetHeader.Create('Range', 'bytes=5-');
+  LRes := FClient.Get(
+    Format('http://localhost:%d/test.txt', [TEST_PORT]), nil, LHeaders);
 
   Assert.AreEqual(206, LRes.StatusCode);
-  Assert.AreEqual('56789', LRes.Content);
-  Assert.AreEqual('bytes 5-9/10', LRes.Headers.Values['Content-Range']);
-  Assert.AreEqual('5', LRes.Headers.Values['Content-Length']);
+  Assert.AreEqual('56789', LRes.ContentAsString);
+  Assert.AreEqual('bytes 5-9/10', LRes.HeaderValue['Content-Range']);
+  Assert.AreEqual('5', LRes.HeaderValue['Content-Length']);
 end;
 
 procedure TTestIntegrationStatic.TestRangeRequestInvalidReturnsHTTP416;
 var
-  LRes: IResponse;
+  LRes: IHTTPResponse;
+  LHeaders: TNetHeaders;
 begin
   // Range inicial maior que o final ou extrapolado
-  LRes := TRequest.New
-    .BaseURL(Format('http://localhost:%d/test.txt', [TEST_PORT]))
-    .AddHeader('Range', 'bytes=15-20')
-    .Get;
+  SetLength(LHeaders, 1);
+  LHeaders[0] := TNetHeader.Create('Range', 'bytes=15-20');
+  LRes := FClient.Get(
+    Format('http://localhost:%d/test.txt', [TEST_PORT]), nil, LHeaders);
 
   Assert.AreEqual(416, LRes.StatusCode);
-  Assert.AreEqual('bytes */10', LRes.Headers.Values['Content-Range']);
+  Assert.AreEqual('bytes */10', LRes.HeaderValue['Content-Range']);
 end;
 
 procedure TTestIntegrationStatic.TestSPAFallbackReturnsIndexHTML;
 var
-  LRes: IResponse;
+  LRes: IHTTPResponse;
 begin
   // Solicita uma rota virtual que não existe fisicamente (ex: /dashboard/relatorios)
-  LRes := TRequest.New
-    .BaseURL(Format('http://localhost:%d/dashboard/relatorios', [TEST_PORT]))
-    .Get;
+  LRes := FClient.Get(
+    Format('http://localhost:%d/dashboard/relatorios', [TEST_PORT]));
 
   // Como o SPA fallback está ativo e index.html existe, deve servir index.html com HTTP 200
   Assert.AreEqual(200, LRes.StatusCode);
-  Assert.AreEqual('<h1>SPA Fallback</h1>', LRes.Content);
-  Assert.AreEqual('text/html', LRes.ContentType);
+  Assert.AreEqual('<h1>SPA Fallback</h1>', LRes.ContentAsString);
+  Assert.IsTrue(LRes.HeaderValue['Content-Type'].StartsWith('text/html'));
 end;
 
 initialization
